@@ -91,66 +91,89 @@ if (turnstileEnabled()) {
 }
 
 async function refreshBrowserChallenge() {
-  if (!API_BASE || turnstileEnabled()) {
-    browserChallengeId = "";
-    return;
-  }
+  browserChallengeId = "";
+  if (!API_BASE || turnstileEnabled()) return false;
+
   try {
-    const res = await fetch(`${API_BASE}/api/v1/challenge`, { method: "GET" });
+    const res = await fetch(`${API_BASE}/api/v1/challenge`, {
+      method: "GET",
+      mode: "cors",
+      cache: "no-store",
+    });
     const data = await res.json();
     if (data.status === "success" && data.challengeId) {
       browserChallengeId = data.challengeId;
-    } else {
-      browserChallengeId = "";
+      return true;
     }
   } catch {
-    browserChallengeId = "";
+    // fall through
   }
+  return false;
 }
 
-function requireBrowserProtection() {
+async function ensureBrowserProtection() {
   if (turnstileEnabled()) {
     if (turnstileToken) return true;
     setStatus("error", "Please complete the security check below, then try again.");
     return false;
   }
-  if (browserChallengeId) return true;
-  setStatus("error", "Security challenge not ready. Refresh the page and try again.");
-  return false;
+
+  const ok = await refreshBrowserChallenge();
+  if (!ok || !browserChallengeId) {
+    setStatus("error", "Security challenge not ready. Hard-refresh the page (Ctrl+F5) and try again.");
+    return false;
+  }
+  return true;
+}
+
+function setActionsEnabled(enabled) {
+  btnCheck.disabled = !enabled;
+  btnActivate.disabled = !enabled;
 }
 
 async function refreshServiceHealth() {
   if (!API_BASE) {
     setServiceHealth("down", "Activation service: Not configured");
-    btnCheck.disabled = true;
-    btnActivate.disabled = true;
+    setActionsEnabled(false);
     return;
   }
 
   setServiceHealth("checking", "Checking activation service...");
+  setActionsEnabled(false);
 
   try {
-    const res = await fetch(`${API_BASE}/api/v1/health`, { method: "GET" });
+    const res = await fetch(`${API_BASE}/api/v1/health`, {
+      method: "GET",
+      mode: "cors",
+      cache: "no-store",
+    });
     const data = await res.json();
 
     if (data.status === "up" && data.ready) {
-      setServiceHealth("up", "Activation service: UP — Ready to activate");
-      btnCheck.disabled = false;
-      btnActivate.disabled = false;
-      await refreshBrowserChallenge();
+      if (turnstileEnabled()) {
+        setServiceHealth("up", "Activation service: UP — Ready to activate");
+        setActionsEnabled(true);
+        return;
+      }
+
+      const challengeOk = await refreshBrowserChallenge();
+      if (challengeOk) {
+        setServiceHealth("up", "Activation service: UP — Ready to activate");
+        setActionsEnabled(true);
+      } else {
+        setServiceHealth("down", "Activation service: Security challenge unavailable");
+        setActionsEnabled(false);
+      }
     } else if (data.status === "down") {
       setServiceHealth("down", "Activation service: DOWN — Try again later");
-      btnCheck.disabled = true;
-      btnActivate.disabled = true;
+      setActionsEnabled(false);
     } else {
       setServiceHealth("down", "Activation service: Unavailable");
-      btnCheck.disabled = true;
-      btnActivate.disabled = true;
+      setActionsEnabled(false);
     }
   } catch {
     setServiceHealth("down", "Activation service: OFFLINE");
-    btnCheck.disabled = true;
-    btnActivate.disabled = true;
+    setActionsEnabled(false);
   }
 }
 
@@ -164,14 +187,24 @@ function ensureApi() {
 
 async function apiCall(endpoint, body) {
   const payload = { ...body };
-  if (turnstileEnabled() && turnstileToken) {
+
+  if (turnstileEnabled()) {
+    if (!turnstileToken) {
+      throw new Error("Security verification required. Refresh the page and try again.");
+    }
     payload.turnstileToken = turnstileToken;
-  } else if (browserChallengeId) {
+  } else {
+    const ok = await refreshBrowserChallenge();
+    if (!ok || !browserChallengeId) {
+      throw new Error("Security challenge not ready. Hard-refresh the page (Ctrl+F5) and try again.");
+    }
     payload.challengeId = browserChallengeId;
   }
 
   const res = await fetch(`${API_BASE}${endpoint}`, {
     method: "POST",
+    mode: "cors",
+    cache: "no-store",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
@@ -187,7 +220,7 @@ async function apiCall(endpoint, body) {
 }
 
 btnCheck.addEventListener("click", async () => {
-  if (!ensureApi() || !requireBrowserProtection()) return;
+  if (!ensureApi() || !(await ensureBrowserProtection())) return;
 
   const key = keyEl.value.trim();
   if (!key) {
@@ -226,7 +259,7 @@ btnCheck.addEventListener("click", async () => {
 });
 
 btnActivate.addEventListener("click", async () => {
-  if (!ensureApi() || !requireBrowserProtection()) return;
+  if (!ensureApi() || !(await ensureBrowserProtection())) return;
 
   const key = keyEl.value.trim();
   const code42 = code42El.value.trim();
