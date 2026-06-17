@@ -67,29 +67,39 @@ export function uuidToFileStem(uuid36: string): string {
   return uuid36.replace(/-/g, "");
 }
 
-const MSEED = 2147483647;
+const MSEED = 161803398;
+const MBIG = 2147483647;
 
-class NetRandom {
-  private _seedArray: number[];
-  private _inext: number;
-  private _inextp: number;
+class CompatPrng {
+  private _seedArray: Int32Array | null = null;
+  private _inext = 0;
+  private _inextp = 21;
 
   constructor(seed: number) {
-    const seedArray = new Array<number>(56).fill(0);
-    let mj = MSEED - Math.abs(seed);
+    this.initialize(seed);
+  }
+
+  private initialize(seed: number): void {
+    const seedArray = new Int32Array(56);
+    const subtraction = seed === -2147483648 ? MBIG : Math.abs(seed);
+    let mj = MSEED - subtraction;
     seedArray[55] = mj;
     let mk = 1;
+    let ii = 0;
     for (let i = 1; i < 55; i++) {
-      const ii = (21 * i) % 55;
+      ii += 21;
+      if (ii >= 55) ii -= 55;
       seedArray[ii] = mk;
       mk = mj - mk;
-      if (mk < 0) mk += MSEED;
+      if (mk < 0) mk += MBIG;
       mj = seedArray[ii];
     }
     for (let k = 1; k < 5; k++) {
-      for (let i = 1; i < 55; i++) {
-        seedArray[i] -= seedArray[1 + ((i + 30) % 55)];
-        if (seedArray[i] < 0) seedArray[i] += MSEED;
+      for (let i = 1; i < 56; i++) {
+        let n = i + 30;
+        if (n >= 55) n -= 55;
+        seedArray[i] -= seedArray[1 + n];
+        if (seedArray[i] < 0) seedArray[i] += MBIG;
       }
     }
     this._seedArray = seedArray;
@@ -97,18 +107,23 @@ class NetRandom {
     this._inextp = 21;
   }
 
-  next(maxValue: number): number {
-    let locINext = this._inext + 1;
-    let locINextp = this._inextp + 1;
-    if (locINext >= 56) locINext = 1;
-    if (locINextp >= 56) locINextp = 1;
-    let retVal = this._seedArray[locINext] - this._seedArray[locINextp];
-    if (retVal === MSEED) retVal--;
-    if (retVal < 0) retVal += MSEED;
-    this._seedArray[locINext] = retVal;
+  private internalSample(): number {
+    const seedArray = this._seedArray!;
+    let locINext = this._inext;
+    if (++locINext >= 56) locINext = 1;
+    let locINextp = this._inextp;
+    if (++locINextp >= 56) locINextp = 1;
+    let retVal = seedArray[locINext] - seedArray[locINextp];
+    if (retVal === MBIG) retVal--;
+    if (retVal < 0) retVal += MBIG;
+    seedArray[locINext] = retVal;
     this._inext = locINext;
     this._inextp = locINextp;
-    return Math.floor((retVal * maxValue) / MSEED);
+    return retVal;
+  }
+
+  next(maxValue: number): number {
+    return (this.internalSample() * (1.0 / MBIG) * maxValue) | 0;
   }
 }
 
@@ -123,7 +138,7 @@ function hashKeyHex(): number {
 
 function buildPerm(n: number): number[] {
   const arr = Array.from({ length: n }, (_, i) => i);
-  const rand = new NetRandom(hashKeyHex() + n);
+  const rand = new CompatPrng(hashKeyHex() + n);
   for (let i = n - 1; i > 0; i--) {
     const j = rand.next(i + 1);
     [arr[i], arr[j]] = [arr[j], arr[i]];
