@@ -62,6 +62,45 @@ export async function deleteKeyFile(
   return deleteRes.ok;
 }
 
+export async function createKeyFile(
+  owner: string,
+  repo: string,
+  pat: string,
+  key: string
+): Promise<boolean> {
+  const fileName = `${key}.txt`;
+  const encoded = btoa(unescape(encodeURIComponent(key)));
+  const res = await fetch(contentsUrl(owner, repo, fileName), {
+    method: "PUT",
+    headers: {
+      ...githubHeaders(pat),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      message: `Add key ${key}`,
+      content: encoded,
+      branch: "main",
+    }),
+  });
+  return res.ok;
+}
+
+export async function listKeyFiles(
+  owner: string,
+  repo: string,
+  pat: string
+): Promise<string[]> {
+  const res = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/contents/`,
+    { headers: githubHeaders(pat) }
+  );
+  if (!res.ok) return [];
+  const data = (await res.json()) as { name?: string; type?: string }[];
+  return data
+    .filter((x) => x.type === "file" && (x.name ?? "").toLowerCase().endsWith(".txt"))
+    .map((x) => (x.name ?? "").slice(0, -4));
+}
+
 export async function createHwidFile(
   owner: string,
   repo: string,

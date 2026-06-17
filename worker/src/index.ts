@@ -1,10 +1,12 @@
 import { getProduct, resolveRepo } from "./products";
 import {
+  createKeyFile,
   createHwidFile,
   deleteKeyFile,
   formatPhilippineTimeNow,
   getKeyUsedDatePH,
   keyFileExists,
+  listKeyFiles,
   notifyDiscord,
 } from "./github";
 import { decodeCode42ToUuid, decodeDynamic, hwidToFileStem, uuidToFileStem } from "./hwid";
@@ -40,6 +42,13 @@ function sanitizeKey(key: string): string {
   return key.trim().replace(/[^a-zA-Z0-9._-]/g, "");
 }
 
+function isAdminAuthorized(request: Request, env: Env): boolean {
+  const token = env.KEYGEN_ADMIN_TOKEN?.trim();
+  if (!token) return false;
+  const incoming = request.headers.get("X-Admin-Token")?.trim();
+  return !!incoming && incoming === token;
+}
+
 function missingSecrets(env: Env): string[] {
   const required = [
     "HAMMER_KEYS_PAT",
@@ -48,6 +57,8 @@ function missingSecrets(env: Env): string[] {
     "VALVEOFF_HWID_PAT",
     "ONETAP_KEYS_PAT",
     "ONETAP_HWID_PAT",
+    "GAMENATIVE_KEYS_PAT",
+    "GAMENATIVE_HWID_PAT",
   ] as const;
   return required.filter((name) => !env[name]);
 }
@@ -244,6 +255,57 @@ async function handleActivate(
   });
 }
 
+async function handleAdminCreateKey(
+  env: Env,
+  productId: string,
+  key: string
+): Promise<Response> {
+  const product = getProduct(productId);
+  if (!product) return json({ status: "error", message: "Invalid product." }, 400);
+  if (!key) return json({ status: "error", message: "Key is required." }, 400);
+
+  const keys = resolveRepo(env, product, "keys");
+  const exists = await keyFileExists(keys.owner, keys.repo, keys.pat, key);
+  if (exists) {
+    return json({ status: "exists", message: "Key already exists." }, 409);
+  }
+  const created = await createKeyFile(keys.owner, keys.repo, keys.pat, key);
+  if (!created) {
+    return json({ status: "error", message: "Failed to create key." }, 500);
+  }
+  return json({ status: "success", message: "Key created successfully." });
+}
+
+async function handleAdminListKeys(
+  env: Env,
+  productId: string,
+  search: string
+): Promise<Response> {
+  const product = getProduct(productId);
+  if (!product) return json({ status: "error", message: "Invalid product." }, 400);
+  const keys = resolveRepo(env, product, "keys");
+  const all = await listKeyFiles(keys.owner, keys.repo, keys.pat);
+  const q = search.trim().toUpperCase();
+  const filtered = q ? all.filter((k) => k.toUpperCase().includes(q)) : all;
+  return json({ status: "success", keys: filtered.slice(0, 500) } as ApiResponse & { keys: string[] });
+}
+
+async function handleAdminDeleteKey(
+  env: Env,
+  productId: string,
+  key: string
+): Promise<Response> {
+  const product = getProduct(productId);
+  if (!product) return json({ status: "error", message: "Invalid product." }, 400);
+  if (!key) return json({ status: "error", message: "Key is required." }, 400);
+  const keys = resolveRepo(env, product, "keys");
+  const deleted = await deleteKeyFile(keys.owner, keys.repo, keys.pat, key);
+  if (!deleted) {
+    return json({ status: "error", message: "Failed to delete key." }, 500);
+  }
+  return json({ status: "success", message: "Key deleted successfully." });
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     try {
@@ -286,6 +348,35 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
 
     if (request.method !== "POST") {
       return json({ status: "error", message: "Method not allowed." }, 405);
+    }
+
+    if (
+      url.pathname === "/api/v1/admin/create-key" ||
+      url.pathname === "/api/v1/admin/list-keys" ||
+      url.pathname === "/api/v1/admin/delete-key"
+    ) {
+      if (!isAdminAuthorized(request, env)) {
+        return json({ status: "error", message: "Unauthorized." }, 401);
+      }
+
+      let adminBody: Record<string, string>;
+      try {
+        adminBody = (await request.json()) as Record<string, string>;
+      } catch {
+        return json({ status: "error", message: "Invalid JSON body." }, 400);
+      }
+
+      const product = adminBody.product?.trim();
+      const key = sanitizeKey(adminBody.key ?? "");
+      const search = (adminBody.search ?? "").trim();
+
+      if (url.pathname === "/api/v1/admin/create-key") {
+        return handleAdminCreateKey(env, product, key);
+      }
+      if (url.pathname === "/api/v1/admin/list-keys") {
+        return handleAdminListKeys(env, product, search);
+      }
+      return handleAdminDeleteKey(env, product, key);
     }
 
     const ip = getClientIp(request);

@@ -53,6 +53,19 @@ export const PRODUCTS: Record<ProductId, ProductConfig> = {
     hwidExtension: ".user2",
     hwidLookupExtensions: [".user2"],
   },
+  gamenative: {
+    id: "gamenative",
+    label: "GameNative Hammer Plugin (Android)",
+    codeMode: "code42",
+    keysOwner: "GAMENATIVE_KEYS_OWNER",
+    keysRepo: "GAMENATIVE_KEYS_REPO",
+    keysPat: "GAMENATIVE_KEYS_PAT",
+    hwidOwner: "GAMENATIVE_HWID_OWNER",
+    hwidRepo: "GAMENATIVE_HWID_REPO",
+    hwidPat: "GAMENATIVE_HWID_PAT",
+    hwidExtension: ".user",
+    hwidLookupExtensions: [".user"],
+  },
 };
 
 export function getProduct(id: string): ProductConfig | null {

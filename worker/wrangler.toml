@@ -29,11 +29,18 @@ ONETAP_KEYS_REPO = "onetaprepobackup"
 ONETAP_HWID_OWNER = "dvahana2424-web"
 ONETAP_HWID_REPO = "pilayrepobackup"
 
-# Secrets — set via: wrangler secret put SECRET_NAME
+GAMENATIVE_KEYS_OWNER = "hammerwebsite12"
+GAMENATIVE_KEYS_REPO = "class12repo"
+GAMENATIVE_HWID_OWNER = "hammerwebsite12"
+GAMENATIVE_HWID_REPO = "class12"
+
+# Secrets ? set via: wrangler secret put SECRET_NAME
 # HAMMER_KEYS_PAT
 # HAMMER_HWID_PAT
 # VALVEOFF_KEYS_PAT
 # VALVEOFF_HWID_PAT
 # ONETAP_KEYS_PAT
 # ONETAP_HWID_PAT
+# GAMENATIVE_KEYS_PAT
+# GAMENATIVE_HWID_PAT
 # DISCORD_WEBHOOK_URL
