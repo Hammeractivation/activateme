@@ -1,6 +1,7 @@
 const productEl = document.getElementById("product");
 const keyEl = document.getElementById("key");
 const code42El = document.getElementById("code42");
+const codeLabelEl = document.getElementById("codeLabel");
 const btnCheck = document.getElementById("btnCheck");
 const btnActivate = document.getElementById("btnActivate");
 const statusEl = document.getElementById("status");
@@ -8,6 +9,19 @@ const serviceHealthEl = document.getElementById("serviceHealth");
 const healthTextEl = document.getElementById("healthText");
 
 const API_BASE = (window.ACTIVATE_API_BASE || "").replace(/\/$/, "");
+
+function updateCodeFieldForProduct() {
+  const isOnetap = productEl.value === "onetap";
+  codeLabelEl.textContent = isOnetap
+    ? "Registration Code (from Onetap app)"
+    : "Registration Code (42 characters)";
+  code42El.placeholder = isOnetap
+    ? "Paste your Onetap registration code"
+    : "Paste code from your app";
+}
+
+productEl.addEventListener("change", updateCodeFieldForProduct);
+updateCodeFieldForProduct();
 
 function setStatus(type, message) {
   statusEl.className = `status ${type}`;
@@ -136,13 +150,19 @@ btnActivate.addEventListener("click", async () => {
     return;
   }
   if (!code42) {
-    setStatus("error", "Please paste your 42-character registration code.");
+    setStatus("error", productEl.value === "onetap"
+      ? "Please paste your Onetap registration code."
+      : "Please paste your 42-character registration code.");
     return;
   }
 
   const cleanedCode = code42.replace(/\s/g, "");
-  if (cleanedCode.length !== 42) {
+  if (productEl.value !== "onetap" && cleanedCode.length !== 42) {
     setStatus("error", `Registration code must be exactly 42 characters (you entered ${cleanedCode.length}). Your key was not used.`);
+    return;
+  }
+  if (productEl.value === "onetap" && cleanedCode.length < 10) {
+    setStatus("error", "Onetap registration code is too short. Your key was not used.");
     return;
   }
 

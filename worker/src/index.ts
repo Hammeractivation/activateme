@@ -7,13 +7,13 @@ import {
   keyFileExists,
   notifyDiscord,
 } from "./github";
-import { decodeCode42ToUuid, uuidToFileStem } from "./hwid";
+import { decodeCode42ToUuid, decodeDynamic, hwidToFileStem, uuidToFileStem } from "./hwid";
 import {
   checkRateLimits,
   isIpBanned,
   recordFailedAttempt,
 } from "./ratelimit";
-import type { ApiResponse, Env } from "./types";
+import type { ApiResponse, Env, ProductConfig } from "./types";
 
 const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
@@ -46,8 +46,32 @@ function missingSecrets(env: Env): string[] {
     "HAMMER_HWID_PAT",
     "VALVEOFF_KEYS_PAT",
     "VALVEOFF_HWID_PAT",
+    "ONETAP_KEYS_PAT",
   ] as const;
   return required.filter((name) => !env[name]);
+}
+
+function decodeRegistrationCode(
+  product: ProductConfig,
+  rawCode: string
+): { hwid: string; fileStem: string } {
+  const cleaned = rawCode.replace(/[\s\t\r\n]/g, "");
+
+  if (product.codeMode === "code42") {
+    if (cleaned.length !== 42) {
+      throw new Error(
+        `Registration code must be exactly 42 characters (got ${cleaned.length}).`
+      );
+    }
+    const uuid36 = decodeCode42ToUuid(rawCode, true);
+    return { hwid: uuid36, fileStem: uuidToFileStem(uuid36) };
+  }
+
+  if (cleaned.length < 10) {
+    throw new Error("Registration code is too short.");
+  }
+  const hwid = decodeDynamic(rawCode);
+  return { hwid, fileStem: hwidToFileStem(hwid) };
 }
 
 async function handleCheckKey(
@@ -148,20 +172,10 @@ async function handleActivate(
     });
   }
 
-  const cleanedCode = code42.replace(/[\s\t\r\n]/g, "");
-  if (cleanedCode.length !== 42) {
-    return json(
-      {
-        status: "error",
-        message: `Registration code must be exactly 42 characters (got ${cleanedCode.length}). Your key was not used.`,
-      },
-      400
-    );
-  }
-
-  let uuid36: string;
+  let hwid: string;
+  let fileStem: string;
   try {
-    uuid36 = decodeCode42ToUuid(code42, true);
+    ({ hwid, fileStem } = decodeRegistrationCode(product, code42));
   } catch (err) {
     await recordFailedAttempt(env.RATE_LIMIT, ip);
     const msg = err instanceof Error ? err.message : "Invalid registration code.";
@@ -185,14 +199,13 @@ async function handleActivate(
     );
   }
 
-  const uuidStem = uuidToFileStem(uuid36);
-  const fileName = `${uuidStem}${product.hwidExtension}`;
+  const fileName = `${fileStem}${product.hwidExtension}`;
   const created = await createHwidFile(
     hwidRepo.owner,
     hwidRepo.repo,
     hwidRepo.pat,
     fileName,
-    uuidStem,
+    fileStem,
     key
   );
 
@@ -213,7 +226,7 @@ async function handleActivate(
     try {
       await notifyDiscord(
         env.DISCORD_WEBHOOK_URL,
-        uuid36,
+        hwid,
         key,
         timePH,
         commitMessage

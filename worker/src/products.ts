@@ -4,6 +4,7 @@ export const PRODUCTS: Record<ProductId, ProductConfig> = {
   hammer: {
     id: "hammer",
     label: "Hammer Activator",
+    codeMode: "code42",
     keysOwner: "HAMMER_KEYS_OWNER",
     keysRepo: "HAMMER_KEYS_REPO",
     keysPat: "HAMMER_KEYS_PAT",
@@ -16,6 +17,7 @@ export const PRODUCTS: Record<ProductId, ProductConfig> = {
   "valveoff-win": {
     id: "valveoff-win",
     label: "Valve OFF (Windows)",
+    codeMode: "code42",
     keysOwner: "VALVEOFF_KEYS_OWNER",
     keysRepo: "VALVEOFF_KEYS_REPO",
     keysPat: "VALVEOFF_KEYS_PAT",
@@ -28,6 +30,7 @@ export const PRODUCTS: Record<ProductId, ProductConfig> = {
   "valveoff-linux": {
     id: "valveoff-linux",
     label: "Valve OFF (Linux)",
+    codeMode: "code42",
     keysOwner: "VALVEOFF_KEYS_OWNER",
     keysRepo: "VALVEOFF_KEYS_REPO",
     keysPat: "VALVEOFF_KEYS_PAT",
@@ -36,6 +39,19 @@ export const PRODUCTS: Record<ProductId, ProductConfig> = {
     hwidPat: "VALVEOFF_HWID_PAT",
     hwidExtension: ".user4",
     hwidLookupExtensions: [".user4"],
+  },
+  onetap: {
+    id: "onetap",
+    label: "Onetap for SteamOS",
+    codeMode: "dynamic",
+    keysOwner: "ONETAP_KEYS_OWNER",
+    keysRepo: "ONETAP_KEYS_REPO",
+    keysPat: "ONETAP_KEYS_PAT",
+    hwidOwner: "HAMMER_HWID_OWNER",
+    hwidRepo: "HAMMER_HWID_REPO",
+    hwidPat: "HAMMER_HWID_PAT",
+    hwidExtension: ".user2",
+    hwidLookupExtensions: [".user2"],
   },
 };
 

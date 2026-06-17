@@ -16,6 +16,7 @@ $allowed = @(
     "HAMMER_HWID_PAT",
     "VALVEOFF_KEYS_PAT",
     "VALVEOFF_HWID_PAT",
+    "ONETAP_KEYS_PAT",
     "DISCORD_WEBHOOK_URL"
 )
 

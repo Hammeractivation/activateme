@@ -24,9 +24,13 @@ VALVEOFF_KEYS_REPO = "repovalveoff"
 VALVEOFF_HWID_OWNER = "hammerwebsite12"
 VALVEOFF_HWID_REPO = "hanaoff"
 
+ONETAP_KEYS_OWNER = "dvahana2424-web"
+ONETAP_KEYS_REPO = "onetaprepobackup"
+
 # Secrets — set via: wrangler secret put SECRET_NAME
 # HAMMER_KEYS_PAT
 # HAMMER_HWID_PAT
 # VALVEOFF_KEYS_PAT
 # VALVEOFF_HWID_PAT
+# ONETAP_KEYS_PAT
 # DISCORD_WEBHOOK_URL

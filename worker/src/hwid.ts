@@ -66,3 +66,92 @@ export function decodeCode42ToUuid(code42: string, dashed = true): string {
 export function uuidToFileStem(uuid36: string): string {
   return uuid36.replace(/-/g, "");
 }
+
+const MSEED = 2147483647;
+
+class NetRandom {
+  private _seedArray: number[];
+  private _inext: number;
+  private _inextp: number;
+
+  constructor(seed: number) {
+    const seedArray = new Array<number>(56).fill(0);
+    let mj = MSEED - Math.abs(seed);
+    seedArray[55] = mj;
+    let mk = 1;
+    for (let i = 1; i < 55; i++) {
+      const ii = (21 * i) % 55;
+      seedArray[ii] = mk;
+      mk = mj - mk;
+      if (mk < 0) mk += MSEED;
+      mj = seedArray[ii];
+    }
+    for (let k = 1; k < 5; k++) {
+      for (let i = 1; i < 55; i++) {
+        seedArray[i] -= seedArray[1 + ((i + 30) % 55)];
+        if (seedArray[i] < 0) seedArray[i] += MSEED;
+      }
+    }
+    this._seedArray = seedArray;
+    this._inext = 0;
+    this._inextp = 21;
+  }
+
+  next(maxValue: number): number {
+    let locINext = this._inext + 1;
+    let locINextp = this._inextp + 1;
+    if (locINext >= 56) locINext = 1;
+    if (locINextp >= 56) locINextp = 1;
+    let retVal = this._seedArray[locINext] - this._seedArray[locINextp];
+    if (retVal === MSEED) retVal--;
+    if (retVal < 0) retVal += MSEED;
+    this._seedArray[locINext] = retVal;
+    this._inext = locINext;
+    this._inextp = locINextp;
+    return Math.floor((retVal * maxValue) / MSEED);
+  }
+}
+
+function hashKeyHex(): number {
+  let h = 17;
+  for (let i = 0; i < KEY_HEX.length; i++) {
+    h = Math.imul(h, 31) + KEY_HEX.charCodeAt(i);
+    h |= 0;
+  }
+  return h;
+}
+
+function buildPerm(n: number): number[] {
+  const arr = Array.from({ length: n }, (_, i) => i);
+  const rand = new NetRandom(hashKeyHex() + n);
+  for (let i = n - 1; i > 0; i--) {
+    const j = rand.next(i + 1);
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+/** Onetap SteamOS — variable-length dynamic code (DecodeDynamic in desktop app). */
+export function decodeDynamic(code: string): string {
+  const cleaned = sanitize(code);
+  if (!cleaned || cleaned.length < 10) {
+    throw new Error("Invalid code length.");
+  }
+
+  const payload = cleaned.slice(5, cleaned.length - 5);
+  const perm = buildPerm(payload.length);
+  const descrambled = new Array<string>(payload.length);
+  for (let i = 0; i < payload.length; i++) descrambled[perm[i]] = payload[i];
+
+  const xored = hexToBytes(descrambled.join(""));
+  const key = hexToBytes(KEY_HEX);
+  const orig = new Uint8Array(xored.length);
+  for (let i = 0; i < xored.length; i++) {
+    orig[i] = xored[i] ^ key[i % key.length];
+  }
+  return new TextDecoder().decode(orig);
+}
+
+export function hwidToFileStem(hwid: string): string {
+  return hwid.replace(/-/g, "");
+}
