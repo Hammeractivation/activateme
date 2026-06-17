@@ -13,11 +13,14 @@ interface StoredCounter {
 }
 
 const RULES = {
-  checkKeyIp: { max: 5, windowSec: 300, stackSec: 300 } satisfies RateLimitRule,
-  activateIp: { max: 3, windowSec: 3600 } satisfies RateLimitRule,
-  checkKeyValue: { max: 3, windowSec: 600 } satisfies RateLimitRule,
-  activateKey: { max: 2, windowSec: 3600 } satisfies RateLimitRule,
-  failIp: { max: 10, windowSec: 1800 } satisfies RateLimitRule,
+  // Check key: generous for resellers testing multiple keys
+  checkKeyIp: { max: 20, windowSec: 300, stackSec: 120 } satisfies RateLimitRule,
+  checkKeyValue: { max: 10, windowSec: 600 } satisfies RateLimitRule,
+  // Activate: allow ~15 devices/hour per IP (reseller batch)
+  activateIp: { max: 15, windowSec: 3600 } satisfies RateLimitRule,
+  // Per key: 3 tries/hour (wrong code retries, not spam)
+  activateKey: { max: 3, windowSec: 3600 } satisfies RateLimitRule,
+  failIp: { max: 25, windowSec: 1800 } satisfies RateLimitRule,
 };
 
 async function readCounter(
