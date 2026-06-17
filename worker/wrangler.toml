@@ -1,0 +1,28 @@
+name = "activateme-api"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+
+# Create KV: wrangler kv namespace create ACTIVATE_RATE_LIMIT
+# Then paste the id below:
+[[kv_namespaces]]
+binding = "RATE_LIMIT"
+id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+
+[vars]
+# Non-secret repo metadata (same names as existing activators)
+HAMMER_KEYS_OWNER = "dvahana2424-web"
+HAMMER_KEYS_REPO = "sojorepobakup"
+HAMMER_HWID_OWNER = "dvahana2424-web"
+HAMMER_HWID_REPO = "pilayrepobackup"
+
+VALVEOFF_KEYS_OWNER = "hammerwebsite12"
+VALVEOFF_KEYS_REPO = "repovalveoff"
+VALVEOFF_HWID_OWNER = "hammerwebsite12"
+VALVEOFF_HWID_REPO = "hanaoff"
+
+# Secrets — set via: wrangler secret put SECRET_NAME
+# HAMMER_KEYS_PAT
+# HAMMER_HWID_PAT
+# VALVEOFF_KEYS_PAT
+# VALVEOFF_HWID_PAT
+# DISCORD_WEBHOOK_URL

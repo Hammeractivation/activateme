@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ActivateMe — Hammer Activation</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="bg-glow"></div>
+
+  <main class="container">
+    <header class="header">
+      <div class="logo">⚒</div>
+      <h1>ActivateMe</h1>
+      <p class="subtitle">Secure device activation portal</p>
+    </header>
+
+    <section class="card">
+      <label class="label" for="product">Select your product</label>
+      <select id="product" class="input">
+        <option value="hammer">Hammer Activator</option>
+        <option value="valveoff-win">Valve OFF — Windows</option>
+        <option value="valveoff-linux">Valve OFF — Linux</option>
+      </select>
+
+      <label class="label" for="key">Activation Key</label>
+      <input id="key" class="input" type="text" placeholder="Enter your key" autocomplete="off" />
+
+      <label class="label" for="code42">Registration Code (42 characters)</label>
+      <input id="code42" class="input" type="text" placeholder="Paste code from your app" maxlength="50" autocomplete="off" />
+
+      <div class="actions">
+        <button id="btnCheck" class="btn btn-secondary" type="button">Check Key</button>
+        <button id="btnActivate" class="btn btn-primary" type="button">Activate</button>
+      </div>
+
+      <div id="status" class="status hidden" role="status" aria-live="polite"></div>
+    </section>
+
+    <footer class="footer">
+      <p>Need help? Contact your seller.</p>
+      <p class="muted">API: <span id="apiUrl">—</span></p>
+    </footer>
+  </main>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

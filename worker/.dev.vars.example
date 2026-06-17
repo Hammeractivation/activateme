@@ -1,0 +1,6 @@
+# Copy to .dev.vars for local testing (never commit .dev.vars)
+HAMMER_KEYS_PAT=github_pat_REPLACE_ME
+HAMMER_HWID_PAT=github_pat_REPLACE_ME
+VALVEOFF_KEYS_PAT=github_pat_REPLACE_ME
+VALVEOFF_HWID_PAT=github_pat_REPLACE_ME
+DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/REPLACE_ME
