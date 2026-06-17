@@ -47,6 +47,7 @@ function missingSecrets(env: Env): string[] {
     "VALVEOFF_KEYS_PAT",
     "VALVEOFF_HWID_PAT",
     "ONETAP_KEYS_PAT",
+    "ONETAP_HWID_PAT",
   ] as const;
   return required.filter((name) => !env[name]);
 }
@@ -320,3 +321,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
 
     return json({ status: "error", message: "Not found." }, 404);
 }
+
+
+
+

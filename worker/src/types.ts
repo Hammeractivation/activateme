@@ -21,12 +21,15 @@ export interface Env {
 
   ONETAP_KEYS_OWNER: string;
   ONETAP_KEYS_REPO: string;
+  ONETAP_HWID_OWNER: string;
+  ONETAP_HWID_REPO: string;
 
   HAMMER_KEYS_PAT: string;
   HAMMER_HWID_PAT: string;
   VALVEOFF_KEYS_PAT: string;
   VALVEOFF_HWID_PAT: string;
   ONETAP_KEYS_PAT: string;
+  ONETAP_HWID_PAT: string;
   DISCORD_WEBHOOK_URL?: string;
 }
 
@@ -48,10 +51,16 @@ export interface ProductConfig {
   >;
   hwidOwner: keyof Pick<
     Env,
-    "HAMMER_HWID_OWNER" | "VALVEOFF_HWID_OWNER"
+    "HAMMER_HWID_OWNER" | "VALVEOFF_HWID_OWNER" | "ONETAP_HWID_OWNER"
   >;
-  hwidRepo: keyof Pick<Env, "HAMMER_HWID_REPO" | "VALVEOFF_HWID_REPO">;
-  hwidPat: keyof Pick<Env, "HAMMER_HWID_PAT" | "VALVEOFF_HWID_PAT">;
+  hwidRepo: keyof Pick<
+    Env,
+    "HAMMER_HWID_REPO" | "VALVEOFF_HWID_REPO" | "ONETAP_HWID_REPO"
+  >;
+  hwidPat: keyof Pick<
+    Env,
+    "HAMMER_HWID_PAT" | "VALVEOFF_HWID_PAT" | "ONETAP_HWID_PAT"
+  >;
   hwidExtension: string;
   hwidLookupExtensions: string[];
 }
