@@ -232,6 +232,22 @@ async function handleActivate(
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    try {
+      return await handleRequest(request, env);
+    } catch (err) {
+      console.error("Worker error:", err);
+      return json(
+        {
+          status: "error",
+          message: "Internal server error. Please try again later.",
+        },
+        500
+      );
+    }
+  },
+};
+
+async function handleRequest(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
 
     if (request.method === "OPTIONS") {
@@ -290,5 +306,4 @@ export default {
     }
 
     return json({ status: "error", message: "Not found." }, 404);
-  },
-};
+}

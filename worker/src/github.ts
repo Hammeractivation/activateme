@@ -95,44 +95,41 @@ export async function getKeyUsedDatePH(
   key: string,
   extensions: string[]
 ): Promise<string | null> {
-  const listRes = await fetch(contentsUrl(owner, repo, ""), {
-    headers: githubHeaders(pat),
-  });
-  if (!listRes.ok) return null;
-
-  const files = (await listRes.json()) as GitHubContentFile[];
-  const extSet = new Set(extensions.map((e) => e.toLowerCase()));
-
-  for (const file of files) {
-    const lower = file.name.toLowerCase();
-    const matched = [...extSet].some((ext) => lower.endsWith(ext));
-    if (!matched) continue;
-
-    const fileRes = await fetch(contentsUrl(owner, repo, file.name), {
-      headers: githubHeaders(pat),
-    });
-    if (!fileRes.ok) continue;
-
-    const fileData = (await fileRes.json()) as GitHubContentFile;
-    if (!fileData.content) continue;
-
-    const decoded = decodeBase64Content(fileData.content);
-    if (!decoded.toLowerCase().includes(`key: ${key.toLowerCase()}`)) continue;
-
-    const commitsRes = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}/commits?path=${encodeURIComponent(file.name)}`,
+  try {
+    const query = encodeURIComponent(`"Key: ${key}" repo:${owner}/${repo}`);
+    const searchRes = await fetch(
+      `https://api.github.com/search/code?q=${query}&per_page=5`,
       { headers: githubHeaders(pat) }
     );
-    if (!commitsRes.ok) return null;
+    if (!searchRes.ok) return null;
 
-    const commits = (await commitsRes.json()) as GitHubCommit[];
-    const utcIso = commits[0]?.commit?.committer?.date;
-    if (!utcIso) return null;
+    const searchData = (await searchRes.json()) as {
+      items?: { name: string; path: string }[];
+    };
+    const items = searchData.items ?? [];
+    const extSet = new Set(extensions.map((e) => e.toLowerCase()));
 
-    return formatPhilippineTime(new Date(utcIso));
+    for (const item of items) {
+      const name = item.name || item.path?.split("/").pop() || "";
+      const lower = name.toLowerCase();
+      const matched = [...extSet].some((ext) => lower.endsWith(ext));
+      if (!matched) continue;
+
+      const commitsRes = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/commits?path=${encodeURIComponent(name)}&per_page=1`,
+        { headers: githubHeaders(pat) }
+      );
+      if (!commitsRes.ok) continue;
+
+      const commits = (await commitsRes.json()) as GitHubCommit[];
+      const utcIso = commits[0]?.commit?.committer?.date;
+      if (utcIso) return formatPhilippineTime(new Date(utcIso));
+    }
+
+    return null;
+  } catch {
+    return null;
   }
-
-  return null;
 }
 
 function decodeBase64Content(content: string): string {
