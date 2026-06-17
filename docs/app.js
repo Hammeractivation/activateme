@@ -29,6 +29,31 @@ function updateCodeFieldForProduct() {
 productEl.addEventListener("change", updateCodeFieldForProduct);
 updateCodeFieldForProduct();
 
+/** Accepts pasted labels like "Hammer 🔑 KEY: HAM61726BVODQ" and returns "HAM61726BVODQ". */
+function parseActivationKey(raw) {
+  let value = (raw ?? "").trim();
+  if (!value) return "";
+
+  const colonIdx = value.lastIndexOf(":");
+  if (colonIdx >= 0) {
+    value = value.slice(colonIdx + 1).trim();
+  }
+
+  return value.replace(/[^a-zA-Z0-9._-]/g, "");
+}
+
+function applySmartKeyInput() {
+  const parsed = parseActivationKey(keyEl.value);
+  if (parsed !== keyEl.value.trim()) {
+    keyEl.value = parsed;
+  }
+}
+
+keyEl.addEventListener("paste", () => {
+  setTimeout(applySmartKeyInput, 0);
+});
+keyEl.addEventListener("blur", applySmartKeyInput);
+
 function setStatus(type, message) {
   statusEl.className = `status ${type}`;
   statusEl.textContent = message;
@@ -222,11 +247,12 @@ async function apiCall(endpoint, body) {
 btnCheck.addEventListener("click", async () => {
   if (!ensureApi() || !(await ensureBrowserProtection())) return;
 
-  const key = keyEl.value.trim();
+  const key = parseActivationKey(keyEl.value);
   if (!key) {
     setStatus("error", "Please enter a key to check.");
     return;
   }
+  keyEl.value = key;
 
   clearStatus();
   setLoading(true);
@@ -261,13 +287,14 @@ btnCheck.addEventListener("click", async () => {
 btnActivate.addEventListener("click", async () => {
   if (!ensureApi() || !(await ensureBrowserProtection())) return;
 
-  const key = keyEl.value.trim();
+  const key = parseActivationKey(keyEl.value);
   const code42 = code42El.value.trim();
 
   if (!key) {
     setStatus("error", "Please enter your activation key.");
     return;
   }
+  keyEl.value = key;
   if (!code42) {
     setStatus("error", productEl.value === "onetap"
       ? "Please paste your Onetap registration code."
