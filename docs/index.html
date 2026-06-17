@@ -40,7 +40,10 @@
 
     <footer class="footer">
       <p>Need help? Contact your seller.</p>
-      <p class="muted">API: <span id="apiUrl">—</span></p>
+      <p id="serviceHealth" class="service-health checking" aria-live="polite">
+        <span class="health-dot" aria-hidden="true"></span>
+        <span id="healthText">Checking activation service...</span>
+      </p>
     </footer>
   </main>
 

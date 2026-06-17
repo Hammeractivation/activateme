@@ -4,11 +4,10 @@ const code42El = document.getElementById("code42");
 const btnCheck = document.getElementById("btnCheck");
 const btnActivate = document.getElementById("btnActivate");
 const statusEl = document.getElementById("status");
-const apiUrlEl = document.getElementById("apiUrl");
+const serviceHealthEl = document.getElementById("serviceHealth");
+const healthTextEl = document.getElementById("healthText");
 
 const API_BASE = (window.ACTIVATE_API_BASE || "").replace(/\/$/, "");
-
-apiUrlEl.textContent = API_BASE || "(set config.js after Worker deploy)";
 
 function setStatus(type, message) {
   statusEl.className = `status ${type}`;
@@ -25,9 +24,48 @@ function setLoading(loading) {
   btnActivate.disabled = loading;
 }
 
+function setServiceHealth(state, text) {
+  serviceHealthEl.className = `service-health ${state}`;
+  healthTextEl.textContent = text;
+}
+
+async function refreshServiceHealth() {
+  if (!API_BASE) {
+    setServiceHealth("down", "Activation service: Not configured");
+    btnCheck.disabled = true;
+    btnActivate.disabled = true;
+    return;
+  }
+
+  setServiceHealth("checking", "Checking activation service...");
+
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/health`, { method: "GET" });
+    const data = await res.json();
+
+    if (data.status === "up" && data.ready) {
+      setServiceHealth("up", "Activation service: UP — Ready to activate");
+      btnCheck.disabled = false;
+      btnActivate.disabled = false;
+    } else if (data.status === "down") {
+      setServiceHealth("down", "Activation service: DOWN — Try again later");
+      btnCheck.disabled = true;
+      btnActivate.disabled = true;
+    } else {
+      setServiceHealth("down", "Activation service: Unavailable");
+      btnCheck.disabled = true;
+      btnActivate.disabled = true;
+    }
+  } catch {
+    setServiceHealth("down", "Activation service: OFFLINE");
+    btnCheck.disabled = true;
+    btnActivate.disabled = true;
+  }
+}
+
 function ensureApi() {
   if (!API_BASE) {
-    setStatus("error", "API URL not configured. Edit website/config.js first.");
+    setStatus("error", "Activation service is not available right now. Please try again later.");
     return false;
   }
   return true;
@@ -69,11 +107,11 @@ btnCheck.addEventListener("click", async () => {
     });
 
     if (data.status === "valid") {
-      setStatus("success", "✅ Key is valid and not yet used.");
+      setStatus("success", "Key is valid and not yet used.");
     } else if (data.status === "used") {
-      setStatus("info", `❌ Key was already registered.\nDate used (PH time): ${data.datePH || "unknown"}`);
+      setStatus("info", `Key was already registered.\nDate used (PH time): ${data.datePH || "unknown"}`);
     } else if (data.status === "not_found") {
-      setStatus("error", "❌ Key not found in database.");
+      setStatus("error", "Key not found in database.");
     } else if (data.status === "rate_limited") {
       const mins = Math.ceil((data.retryAfter || 300) / 60);
       setStatus("error", `Too many requests. Wait about ${mins} minute(s).`);
@@ -99,6 +137,12 @@ btnActivate.addEventListener("click", async () => {
   }
   if (!code42) {
     setStatus("error", "Please paste your 42-character registration code.");
+    return;
+  }
+
+  const cleanedCode = code42.replace(/\s/g, "");
+  if (cleanedCode.length !== 42) {
+    setStatus("error", `Registration code must be exactly 42 characters (you entered ${cleanedCode.length}). Your key was not used.`);
     return;
   }
 
@@ -128,3 +172,6 @@ btnActivate.addEventListener("click", async () => {
     setLoading(false);
   }
 });
+
+refreshServiceHealth();
+setInterval(refreshServiceHealth, 60000);

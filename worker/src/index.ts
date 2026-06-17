@@ -148,13 +148,30 @@ async function handleActivate(
     });
   }
 
+  const cleanedCode = code42.replace(/[\s\t\r\n]/g, "");
+  if (cleanedCode.length !== 42) {
+    return json(
+      {
+        status: "error",
+        message: `Registration code must be exactly 42 characters (got ${cleanedCode.length}). Your key was not used.`,
+      },
+      400
+    );
+  }
+
   let uuid36: string;
   try {
     uuid36 = decodeCode42ToUuid(code42, true);
   } catch (err) {
     await recordFailedAttempt(env.RATE_LIMIT, ip);
     const msg = err instanceof Error ? err.message : "Invalid registration code.";
-    return json({ status: "error", message: `Invalid registration code. ${msg}` }, 400);
+    return json(
+      {
+        status: "error",
+        message: `Invalid registration code. ${msg} Your key was not used.`,
+      },
+      400
+    );
   }
 
   const deleted = await deleteKeyFile(keys.owner, keys.repo, keys.pat, key);
@@ -223,11 +240,17 @@ export default {
 
     if (request.method === "GET" && url.pathname === "/api/v1/health") {
       const missing = missingSecrets(env);
+      if (missing.length) {
+        return json({
+          status: "down",
+          ready: false,
+          message: "Activation service is temporarily unavailable.",
+        });
+      }
       return json({
-        status: missing.length ? "misconfigured" : "ok",
-        message: missing.length
-          ? `Missing secrets: ${missing.join(", ")}`
-          : "ActivateMe API is running.",
+        status: "up",
+        ready: true,
+        message: "Ready to activate.",
       });
     }
 
