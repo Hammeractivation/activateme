@@ -44,3 +44,4 @@ GAMENATIVE_HWID_REPO = "class12"
 # GAMENATIVE_KEYS_PAT
 # GAMENATIVE_HWID_PAT
 # DISCORD_WEBHOOK_URL
+# TURNSTILE_SECRET_KEY (optional ? bot check for website browsers only)

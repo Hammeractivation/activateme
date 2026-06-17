@@ -7,8 +7,14 @@ const btnActivate = document.getElementById("btnActivate");
 const statusEl = document.getElementById("status");
 const serviceHealthEl = document.getElementById("serviceHealth");
 const healthTextEl = document.getElementById("healthText");
+const turnstileWidgetEl = document.getElementById("turnstile-widget");
 
 const API_BASE = (window.ACTIVATE_API_BASE || "").replace(/\/$/, "");
+const TURNSTILE_SITE_KEY = (window.TURNSTILE_SITE_KEY || "").trim();
+
+let browserChallengeId = "";
+let turnstileToken = "";
+let turnstileWidgetId = null;
 
 function updateCodeFieldForProduct() {
   const isOnetap = productEl.value === "onetap";
@@ -43,6 +49,76 @@ function setServiceHealth(state, text) {
   healthTextEl.textContent = text;
 }
 
+function turnstileEnabled() {
+  return !!TURNSTILE_SITE_KEY;
+}
+
+function resetTurnstile() {
+  if (!turnstileEnabled() || turnstileWidgetId === null || !window.turnstile) return;
+  turnstileToken = "";
+  try {
+    window.turnstile.reset(turnstileWidgetId);
+  } catch {
+    // ignore reset errors
+  }
+}
+
+window.onTurnstileLoad = function onTurnstileLoad() {
+  if (!turnstileEnabled() || !turnstileWidgetEl) return;
+
+  turnstileWidgetEl.setAttribute("aria-hidden", "false");
+  turnstileWidgetId = window.turnstile.render(turnstileWidgetEl, {
+    sitekey: TURNSTILE_SITE_KEY,
+    theme: "dark",
+    callback(token) {
+      turnstileToken = token;
+    },
+    "expired-callback"() {
+      turnstileToken = "";
+    },
+    "error-callback"() {
+      turnstileToken = "";
+    },
+  });
+};
+
+if (turnstileEnabled()) {
+  const script = document.createElement("script");
+  script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileLoad";
+  script.async = true;
+  script.defer = true;
+  document.head.appendChild(script);
+}
+
+async function refreshBrowserChallenge() {
+  if (!API_BASE || turnstileEnabled()) {
+    browserChallengeId = "";
+    return;
+  }
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/challenge`, { method: "GET" });
+    const data = await res.json();
+    if (data.status === "success" && data.challengeId) {
+      browserChallengeId = data.challengeId;
+    } else {
+      browserChallengeId = "";
+    }
+  } catch {
+    browserChallengeId = "";
+  }
+}
+
+function requireBrowserProtection() {
+  if (turnstileEnabled()) {
+    if (turnstileToken) return true;
+    setStatus("error", "Please complete the security check below, then try again.");
+    return false;
+  }
+  if (browserChallengeId) return true;
+  setStatus("error", "Security challenge not ready. Refresh the page and try again.");
+  return false;
+}
+
 async function refreshServiceHealth() {
   if (!API_BASE) {
     setServiceHealth("down", "Activation service: Not configured");
@@ -61,6 +137,7 @@ async function refreshServiceHealth() {
       setServiceHealth("up", "Activation service: UP — Ready to activate");
       btnCheck.disabled = false;
       btnActivate.disabled = false;
+      await refreshBrowserChallenge();
     } else if (data.status === "down") {
       setServiceHealth("down", "Activation service: DOWN — Try again later");
       btnCheck.disabled = true;
@@ -86,10 +163,17 @@ function ensureApi() {
 }
 
 async function apiCall(endpoint, body) {
+  const payload = { ...body };
+  if (turnstileEnabled() && turnstileToken) {
+    payload.turnstileToken = turnstileToken;
+  } else if (browserChallengeId) {
+    payload.challengeId = browserChallengeId;
+  }
+
   const res = await fetch(`${API_BASE}${endpoint}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    body: JSON.stringify(payload),
   });
 
   let data;
@@ -103,7 +187,7 @@ async function apiCall(endpoint, body) {
 }
 
 btnCheck.addEventListener("click", async () => {
-  if (!ensureApi()) return;
+  if (!ensureApi() || !requireBrowserProtection()) return;
 
   const key = keyEl.value.trim();
   if (!key) {
@@ -136,11 +220,13 @@ btnCheck.addEventListener("click", async () => {
     setStatus("error", err.message || "Network error.");
   } finally {
     setLoading(false);
+    resetTurnstile();
+    await refreshBrowserChallenge();
   }
 });
 
 btnActivate.addEventListener("click", async () => {
-  if (!ensureApi()) return;
+  if (!ensureApi() || !requireBrowserProtection()) return;
 
   const key = keyEl.value.trim();
   const code42 = code42El.value.trim();
@@ -190,6 +276,8 @@ btnActivate.addEventListener("click", async () => {
     setStatus("error", err.message || "Network error.");
   } finally {
     setLoading(false);
+    resetTurnstile();
+    await refreshBrowserChallenge();
   }
 });
 

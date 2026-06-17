@@ -21,6 +21,8 @@ const RULES = {
   // Per key: 3 tries/hour (wrong code retries, not spam)
   activateKey: { max: 3, windowSec: 3600 } satisfies RateLimitRule,
   failIp: { max: 25, windowSec: 1800 } satisfies RateLimitRule,
+  adminOpIp: { max: 600, windowSec: 3600 } satisfies RateLimitRule,
+  adminFailIp: { max: 10, windowSec: 300, stackSec: 120 } satisfies RateLimitRule,
 };
 
 async function readCounter(
@@ -123,4 +125,25 @@ export async function isIpBanned(kv: KVNamespace, ip: string): Promise<boolean> 
   if (!counter) return false;
   const now = Math.floor(Date.now() / 1000);
   return counter.count >= RULES.failIp.max && counter.resetAt > now;
+}
+
+export async function checkAdminRateLimits(
+  kv: KVNamespace,
+  ip: string
+): Promise<RateLimitResult> {
+  return consume(kv, `rl:admin:ip:${ip}`, RULES.adminOpIp);
+}
+
+export async function recordAdminFailedAttempt(
+  kv: KVNamespace,
+  ip: string
+): Promise<void> {
+  await consume(kv, `rl:admin-fail:ip:${ip}`, RULES.adminFailIp, true);
+}
+
+export async function isAdminIpBanned(kv: KVNamespace, ip: string): Promise<boolean> {
+  const counter = await readCounter(kv, `rl:admin-fail:ip:${ip}`);
+  if (!counter) return false;
+  const now = Math.floor(Date.now() / 1000);
+  return counter.count >= RULES.adminFailIp.max && counter.resetAt > now;
 }

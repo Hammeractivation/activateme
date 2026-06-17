@@ -193,6 +193,17 @@ function formatPhilippineTime(date: Date): string {
     .replace(" ", " ");
 }
 
+function maskHwid(hwid: string): string {
+  const plain = hwid.replace(/-/g, "");
+  if (plain.length <= 12) return `${plain.slice(0, 4)}…`;
+  return `${plain.slice(0, 8)}…${plain.slice(-4)}`;
+}
+
+function maskKey(key: string): string {
+  if (key.length <= 4) return "****";
+  return `…${key.slice(-4)}`;
+}
+
 export async function notifyDiscord(
   webhookUrl: string,
   hwid: string,
@@ -202,8 +213,8 @@ export async function notifyDiscord(
 ): Promise<void> {
   const content =
     `**New Registration**\n` +
-    `**HWID:** \`${hwid}\`\n` +
-    `**Key:** \`${key}\`\n` +
+    `**HWID:** \`${maskHwid(hwid)}\`\n` +
+    `**Key:** \`${maskKey(key)}\`\n` +
     `**Date:** \`${timePH}\`\n` +
     `**Commit message:** ${commitMessage}`;
 

@@ -40,6 +40,7 @@ export interface Env {
   GAMENATIVE_HWID_PAT: string;
   KEYGEN_ADMIN_TOKEN?: string;
   DISCORD_WEBHOOK_URL?: string;
+  TURNSTILE_SECRET_KEY?: string;
 }
 
 export interface ProductConfig {

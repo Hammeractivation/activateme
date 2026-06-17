@@ -21,7 +21,8 @@ $allowed = @(
     "GAMENATIVE_KEYS_PAT",
     "GAMENATIVE_HWID_PAT",
     "KEYGEN_ADMIN_TOKEN",
-    "DISCORD_WEBHOOK_URL"
+    "DISCORD_WEBHOOK_URL",
+    "TURNSTILE_SECRET_KEY"
 )
 
 Write-Host "Reading secrets.local.env ..." -ForegroundColor Cyan

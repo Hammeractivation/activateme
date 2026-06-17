@@ -223,6 +223,17 @@ body {
   border: 1px solid rgba(239, 68, 68, 0.35);
 }
 
+.turnstile-wrap {
+  display: none;
+  margin-top: 1rem;
+  min-height: 65px;
+}
+
+.turnstile-wrap[aria-hidden="false"] {
+  display: flex;
+  justify-content: center;
+}
+
 @media (max-width: 420px) {
   .actions {
     grid-template-columns: 1fr;

@@ -1,4 +1,5 @@
 import { getProduct, resolveRepo } from "./products";
+import { corsHeaders, isBrowserOrigin } from "./cors";
 import {
   createKeyFile,
   createHwidFile,
@@ -11,22 +12,21 @@ import {
 } from "./github";
 import { decodeCode42ToUuid, decodeDynamic, hwidToFileStem, uuidToFileStem } from "./hwid";
 import {
+  checkAdminRateLimits,
   checkRateLimits,
+  isAdminIpBanned,
   isIpBanned,
+  recordAdminFailedAttempt,
   recordFailedAttempt,
 } from "./ratelimit";
+import { issueChallenge, consumeChallenge } from "./challenge";
+import { verifyTurnstile } from "./turnstile";
 import type { ApiResponse, Env, ProductConfig } from "./types";
 
-const CORS_HEADERS: Record<string, string> = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
-};
-
-function json(data: ApiResponse, status = 200): Response {
+function json(request: Request, data: ApiResponse, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { "Content-Type": "application/json", ...CORS_HEADERS },
+    headers: { "Content-Type": "application/json", ...corsHeaders(request) },
   });
 }
 
@@ -47,6 +47,51 @@ function isAdminAuthorized(request: Request, env: Env): boolean {
   if (!token) return false;
   const incoming = request.headers.get("X-Admin-Token")?.trim();
   return !!incoming && incoming === token;
+}
+
+async function assertBrowserProtection(
+  request: Request,
+  env: Env,
+  ip: string,
+  body: Record<string, string>
+): Promise<Response | null> {
+  if (!isBrowserOrigin(request)) return null;
+
+  if (env.TURNSTILE_SECRET_KEY?.trim()) {
+    const token = body.turnstileToken?.trim();
+    if (!token) {
+      return json(request, {
+        status: "error",
+        message: "Security verification required. Refresh the page and try again.",
+      }, 403);
+    }
+    const ok = await verifyTurnstile(env.TURNSTILE_SECRET_KEY.trim(), token, ip);
+    if (!ok) {
+      return json(request, {
+        status: "error",
+        message: "Security verification failed. Refresh the page and try again.",
+      }, 403);
+    }
+    return null;
+  }
+
+  const challengeId = body.challengeId?.trim();
+  if (!challengeId) {
+    return json(request, {
+      status: "error",
+      message: "Security challenge missing. Refresh the page and try again.",
+    }, 403);
+  }
+
+  const valid = await consumeChallenge(env.RATE_LIMIT, challengeId, ip);
+  if (!valid) {
+    return json(request, {
+      status: "error",
+      message: "Security challenge expired. Refresh the page and try again.",
+    }, 403);
+  }
+
+  return null;
 }
 
 function missingSecrets(env: Env): string[] {
@@ -87,19 +132,21 @@ function decodeRegistrationCode(
 }
 
 async function handleCheckKey(
+  request: Request,
   env: Env,
   ip: string,
   productId: string,
   key: string
 ): Promise<Response> {
   const product = getProduct(productId);
-  if (!product) return json({ status: "error", message: "Invalid product." }, 400);
+  if (!product) return json(request, { status: "error", message: "Invalid product." }, 400);
 
-  if (!key) return json({ status: "error", message: "Key is required." }, 400);
+  if (!key) return json(request, { status: "error", message: "Key is required." }, 400);
 
   const rate = await checkRateLimits(env.RATE_LIMIT, "check-key", ip, key);
   if (!rate.allowed) {
     return json(
+      request,
       {
         status: "rate_limited",
         message: "Too many requests. Please wait before checking again.",
@@ -114,7 +161,7 @@ async function handleCheckKey(
   const exists = await keyFileExists(keys.owner, keys.repo, keys.pat, key);
 
   if (exists) {
-    return json({
+    return json(request, {
       status: "valid",
       message: "Key is valid and not yet used.",
     });
@@ -129,7 +176,7 @@ async function handleCheckKey(
   );
 
   if (usedDate) {
-    return json({
+    return json(request, {
       status: "used",
       message: "Key was already registered.",
       datePH: usedDate,
@@ -137,13 +184,14 @@ async function handleCheckKey(
   }
 
   await recordFailedAttempt(env.RATE_LIMIT, ip);
-  return json({
+  return json(request, {
     status: "not_found",
     message: "Key not found in database.",
   });
 }
 
 async function handleActivate(
+  request: Request,
   env: Env,
   ip: string,
   productId: string,
@@ -151,10 +199,11 @@ async function handleActivate(
   code42: string
 ): Promise<Response> {
   const product = getProduct(productId);
-  if (!product) return json({ status: "error", message: "Invalid product." }, 400);
+  if (!product) return json(request, { status: "error", message: "Invalid product." }, 400);
 
   if (!key || !code42) {
     return json(
+      request,
       { status: "error", message: "Key and registration code are required." },
       400
     );
@@ -163,6 +212,7 @@ async function handleActivate(
   const rate = await checkRateLimits(env.RATE_LIMIT, "activate", ip, key);
   if (!rate.allowed) {
     return json(
+      request,
       {
         status: "rate_limited",
         message: "Too many activation attempts. Please wait.",
@@ -178,7 +228,7 @@ async function handleActivate(
   const exists = await keyFileExists(keys.owner, keys.repo, keys.pat, key);
   if (!exists) {
     await recordFailedAttempt(env.RATE_LIMIT, ip);
-    return json({
+    return json(request, {
       status: "not_found",
       message: "Key not found. Contact your seller.",
     });
@@ -192,6 +242,7 @@ async function handleActivate(
     await recordFailedAttempt(env.RATE_LIMIT, ip);
     const msg = err instanceof Error ? err.message : "Invalid registration code.";
     return json(
+      request,
       {
         status: "error",
         message: `Invalid registration code. ${msg} Your key was not used.`,
@@ -203,6 +254,7 @@ async function handleActivate(
   const deleted = await deleteKeyFile(keys.owner, keys.repo, keys.pat, key);
   if (!deleted) {
     return json(
+      request,
       {
         status: "error",
         message: "Key was found but could not be consumed. Try again or contact support.",
@@ -223,6 +275,7 @@ async function handleActivate(
 
   if (!created) {
     return json(
+      request,
       {
         status: "error",
         message:
@@ -248,7 +301,7 @@ async function handleActivate(
     }
   }
 
-  return json({
+  return json(request, {
     status: "success",
     message:
       "Successfully registered device. Please wait 2-4 minutes, then open your app again.",
@@ -256,54 +309,57 @@ async function handleActivate(
 }
 
 async function handleAdminCreateKey(
+  request: Request,
   env: Env,
   productId: string,
   key: string
 ): Promise<Response> {
   const product = getProduct(productId);
-  if (!product) return json({ status: "error", message: "Invalid product." }, 400);
-  if (!key) return json({ status: "error", message: "Key is required." }, 400);
+  if (!product) return json(request, { status: "error", message: "Invalid product." }, 400);
+  if (!key) return json(request, { status: "error", message: "Key is required." }, 400);
 
   const keys = resolveRepo(env, product, "keys");
   const exists = await keyFileExists(keys.owner, keys.repo, keys.pat, key);
   if (exists) {
-    return json({ status: "exists", message: "Key already exists." }, 409);
+    return json(request, { status: "exists", message: "Key already exists." }, 409);
   }
   const created = await createKeyFile(keys.owner, keys.repo, keys.pat, key);
   if (!created) {
-    return json({ status: "error", message: "Failed to create key." }, 500);
+    return json(request, { status: "error", message: "Failed to create key." }, 500);
   }
-  return json({ status: "success", message: "Key created successfully." });
+  return json(request, { status: "success", message: "Key created successfully." });
 }
 
 async function handleAdminListKeys(
+  request: Request,
   env: Env,
   productId: string,
   search: string
 ): Promise<Response> {
   const product = getProduct(productId);
-  if (!product) return json({ status: "error", message: "Invalid product." }, 400);
+  if (!product) return json(request, { status: "error", message: "Invalid product." }, 400);
   const keys = resolveRepo(env, product, "keys");
   const all = await listKeyFiles(keys.owner, keys.repo, keys.pat);
   const q = search.trim().toUpperCase();
   const filtered = q ? all.filter((k) => k.toUpperCase().includes(q)) : all;
-  return json({ status: "success", keys: filtered.slice(0, 500) } as ApiResponse & { keys: string[] });
+  return json(request, { status: "success", keys: filtered.slice(0, 500) } as ApiResponse & { keys: string[] });
 }
 
 async function handleAdminDeleteKey(
+  request: Request,
   env: Env,
   productId: string,
   key: string
 ): Promise<Response> {
   const product = getProduct(productId);
-  if (!product) return json({ status: "error", message: "Invalid product." }, 400);
-  if (!key) return json({ status: "error", message: "Key is required." }, 400);
+  if (!product) return json(request, { status: "error", message: "Invalid product." }, 400);
+  if (!key) return json(request, { status: "error", message: "Key is required." }, 400);
   const keys = resolveRepo(env, product, "keys");
   const deleted = await deleteKeyFile(keys.owner, keys.repo, keys.pat, key);
   if (!deleted) {
-    return json({ status: "error", message: "Failed to delete key." }, 500);
+    return json(request, { status: "error", message: "Failed to delete key." }, 500);
   }
-  return json({ status: "success", message: "Key deleted successfully." });
+  return json(request, { status: "success", message: "Key deleted successfully." });
 }
 
 export default {
@@ -313,6 +369,7 @@ export default {
     } catch (err) {
       console.error("Worker error:", err);
       return json(
+        request,
         {
           status: "error",
           message: "Internal server error. Please try again later.",
@@ -327,43 +384,91 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
 
     if (request.method === "OPTIONS") {
-      return new Response(null, { status: 204, headers: CORS_HEADERS });
+      return new Response(null, { status: 204, headers: corsHeaders(request) });
     }
 
     if (request.method === "GET" && url.pathname === "/api/v1/health") {
       const missing = missingSecrets(env);
       if (missing.length) {
-        return json({
+        return json(request, {
           status: "down",
           ready: false,
           message: "Activation service is temporarily unavailable.",
         });
       }
-      return json({
+      return json(request, {
         status: "up",
         ready: true,
         message: "Ready to activate.",
       });
     }
 
-    if (request.method !== "POST") {
-      return json({ status: "error", message: "Method not allowed." }, 405);
+    if (request.method === "GET" && url.pathname === "/api/v1/challenge") {
+      const ip = getClientIp(request);
+      const issued = await issueChallenge(env.RATE_LIMIT, ip);
+      if ("allowed" in issued && issued.allowed === false) {
+        return json(
+          request,
+          {
+            status: "rate_limited",
+            message: "Too many requests. Please wait.",
+            retryAfter: issued.retryAfter,
+          },
+          429
+        );
+      }
+      return json(request, {
+        status: "success",
+        challengeId: (issued as { challengeId: string }).challengeId,
+      } as ApiResponse & { challengeId: string });
     }
+
+    if (request.method !== "POST") {
+      return json(request, { status: "error", message: "Method not allowed." }, 405);
+    }
+
+    const ip = getClientIp(request);
 
     if (
       url.pathname === "/api/v1/admin/create-key" ||
       url.pathname === "/api/v1/admin/list-keys" ||
       url.pathname === "/api/v1/admin/delete-key"
     ) {
+      if (await isAdminIpBanned(env.RATE_LIMIT, ip)) {
+        return json(
+          request,
+          {
+            status: "rate_limited",
+            message: "Too many failed admin attempts. Try again later.",
+            retryAfter: 1800,
+          },
+          429
+        );
+      }
+
+      const adminRate = await checkAdminRateLimits(env.RATE_LIMIT, ip);
+      if (!adminRate.allowed) {
+        return json(
+          request,
+          {
+            status: "rate_limited",
+            message: "Too many admin requests. Please wait.",
+            retryAfter: adminRate.retryAfter,
+          },
+          429
+        );
+      }
+
       if (!isAdminAuthorized(request, env)) {
-        return json({ status: "error", message: "Unauthorized." }, 401);
+        await recordAdminFailedAttempt(env.RATE_LIMIT, ip);
+        return json(request, { status: "error", message: "Unauthorized." }, 401);
       }
 
       let adminBody: Record<string, string>;
       try {
         adminBody = (await request.json()) as Record<string, string>;
       } catch {
-        return json({ status: "error", message: "Invalid JSON body." }, 400);
+        return json(request, { status: "error", message: "Invalid JSON body." }, 400);
       }
 
       const product = adminBody.product?.trim();
@@ -371,17 +476,17 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
       const search = (adminBody.search ?? "").trim();
 
       if (url.pathname === "/api/v1/admin/create-key") {
-        return handleAdminCreateKey(env, product, key);
+        return handleAdminCreateKey(request, env, product, key);
       }
       if (url.pathname === "/api/v1/admin/list-keys") {
-        return handleAdminListKeys(env, product, search);
+        return handleAdminListKeys(request, env, product, search);
       }
-      return handleAdminDeleteKey(env, product, key);
+      return handleAdminDeleteKey(request, env, product, key);
     }
 
-    const ip = getClientIp(request);
     if (await isIpBanned(env.RATE_LIMIT, ip)) {
       return json(
+        request,
         {
           status: "rate_limited",
           message: "Too many failed attempts. Try again later.",
@@ -395,22 +500,25 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     try {
       body = (await request.json()) as Record<string, string>;
     } catch {
-      return json({ status: "error", message: "Invalid JSON body." }, 400);
+      return json(request, { status: "error", message: "Invalid JSON body." }, 400);
     }
+
+    const protectionBlock = await assertBrowserProtection(request, env, ip, body);
+    if (protectionBlock) return protectionBlock;
 
     const product = body.product?.trim();
     const key = sanitizeKey(body.key ?? "");
     const code42 = body.code42?.trim() ?? "";
 
     if (url.pathname === "/api/v1/check-key") {
-      return handleCheckKey(env, ip, product, key);
+      return handleCheckKey(request, env, ip, product, key);
     }
 
     if (url.pathname === "/api/v1/activate") {
-      return handleActivate(env, ip, product, key, code42);
+      return handleActivate(request, env, ip, product, key, code42);
     }
 
-    return json({ status: "error", message: "Not found." }, 404);
+    return json(request, { status: "error", message: "Not found." }, 404);
 }
 
 
