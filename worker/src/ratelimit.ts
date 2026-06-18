@@ -29,9 +29,9 @@ async function readCounter(
   kv: KVNamespace,
   key: string
 ): Promise<StoredCounter | null> {
-  const raw = await kv.get(key);
-  if (!raw) return null;
   try {
+    const raw = await kv.get(key);
+    if (!raw) return null;
     return JSON.parse(raw) as StoredCounter;
   } catch {
     return null;
@@ -44,7 +44,11 @@ async function writeCounter(
   value: StoredCounter,
   ttlSec: number
 ): Promise<void> {
-  await kv.put(key, JSON.stringify(value), { expirationTtl: ttlSec });
+  try {
+    await kv.put(key, JSON.stringify(value), { expirationTtl: ttlSec });
+  } catch {
+    // KV quota/outage — skip write
+  }
 }
 
 async function consume(
@@ -93,21 +97,25 @@ export async function checkRateLimits(
   ip: string,
   key?: string
 ): Promise<RateLimitResult> {
-  const ipRule =
-    action === "check-key" ? RULES.checkKeyIp : RULES.activateIp;
-  const ipResult = await consume(
-    kv,
-    `rl:${action}:ip:${ip}`,
-    ipRule,
-    action === "check-key"
-  );
-  if (!ipResult.allowed) return ipResult;
+  try {
+    const ipRule =
+      action === "check-key" ? RULES.checkKeyIp : RULES.activateIp;
+    const ipResult = await consume(
+      kv,
+      `rl:${action}:ip:${ip}`,
+      ipRule,
+      action === "check-key"
+    );
+    if (!ipResult.allowed) return ipResult;
 
-  if (key) {
-    const keyRule =
-      action === "check-key" ? RULES.checkKeyValue : RULES.activateKey;
-    const keyResult = await consume(kv, `rl:${action}:key:${key}`, keyRule);
-    if (!keyResult.allowed) return keyResult;
+    if (key) {
+      const keyRule =
+        action === "check-key" ? RULES.checkKeyValue : RULES.activateKey;
+      const keyResult = await consume(kv, `rl:${action}:key:${key}`, keyRule);
+      if (!keyResult.allowed) return keyResult;
+    }
+  } catch {
+    return { allowed: true };
   }
 
   return { allowed: true };
@@ -117,14 +125,22 @@ export async function recordFailedAttempt(
   kv: KVNamespace,
   ip: string
 ): Promise<RateLimitResult> {
-  return consume(kv, `rl:fail:ip:${ip}`, RULES.failIp);
+  try {
+    return await consume(kv, `rl:fail:ip:${ip}`, RULES.failIp);
+  } catch {
+    return { allowed: true };
+  }
 }
 
 export async function isIpBanned(kv: KVNamespace, ip: string): Promise<boolean> {
-  const counter = await readCounter(kv, `rl:fail:ip:${ip}`);
-  if (!counter) return false;
-  const now = Math.floor(Date.now() / 1000);
-  return counter.count >= RULES.failIp.max && counter.resetAt > now;
+  try {
+    const counter = await readCounter(kv, `rl:fail:ip:${ip}`);
+    if (!counter) return false;
+    const now = Math.floor(Date.now() / 1000);
+    return counter.count >= RULES.failIp.max && counter.resetAt > now;
+  } catch {
+    return false;
+  }
 }
 
 export async function checkAdminRateLimits(

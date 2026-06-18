@@ -83,7 +83,7 @@ async function assertBrowserProtection(
     }, 403);
   }
 
-  const valid = await consumeChallenge(env.RATE_LIMIT, challengeId, ip);
+  const valid = await consumeChallenge(env, challengeId, ip);
   if (!valid) {
     return json(request, {
       status: "error",
@@ -405,7 +405,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
 
     if (request.method === "GET" && url.pathname === "/api/v1/challenge") {
       const ip = getClientIp(request);
-      const issued = await issueChallenge(env.RATE_LIMIT, ip);
+      const issued = await issueChallenge(env, ip);
       if ("allowed" in issued && issued.allowed === false) {
         return json(
           request,

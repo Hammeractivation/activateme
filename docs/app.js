@@ -156,7 +156,7 @@ function setActionsEnabled(enabled) {
   btnActivate.disabled = !enabled;
 }
 
-async function refreshServiceHealth() {
+async function refreshServiceHealth({ prefetchChallenge = false } = {}) {
   if (!API_BASE) {
     setServiceHealth("down", "Activation service: Not configured");
     setActionsEnabled(false);
@@ -164,7 +164,7 @@ async function refreshServiceHealth() {
   }
 
   setServiceHealth("checking", "Checking activation service...");
-  setActionsEnabled(false);
+  if (prefetchChallenge) setActionsEnabled(false);
 
   try {
     const res = await fetch(`${API_BASE}/api/v1/health`, {
@@ -181,14 +181,21 @@ async function refreshServiceHealth() {
         return;
       }
 
-      const challengeOk = await refreshBrowserChallenge();
-      if (challengeOk) {
-        setServiceHealth("up", "Activation service: UP — Ready to activate");
-        setActionsEnabled(true);
-      } else {
-        setServiceHealth("down", "Activation service: Security challenge unavailable");
-        setActionsEnabled(false);
+      // Challenge is fetched on button click (apiCall). Only prefetch on first load.
+      if (prefetchChallenge) {
+        const challengeOk = await refreshBrowserChallenge();
+        if (challengeOk) {
+          setServiceHealth("up", "Activation service: UP — Ready to activate");
+          setActionsEnabled(true);
+        } else {
+          setServiceHealth("down", "Activation service: Security challenge unavailable");
+          setActionsEnabled(false);
+        }
+        return;
       }
+
+      setServiceHealth("up", "Activation service: UP — Ready to activate");
+      setActionsEnabled(true);
     } else if (data.status === "down") {
       setServiceHealth("down", "Activation service: DOWN — Try again later");
       setActionsEnabled(false);
@@ -341,5 +348,5 @@ btnActivate.addEventListener("click", async () => {
   }
 });
 
-refreshServiceHealth();
-setInterval(refreshServiceHealth, 60000);
+refreshServiceHealth({ prefetchChallenge: true });
+setInterval(() => refreshServiceHealth(), 60000);

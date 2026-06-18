@@ -10,7 +10,7 @@ enabled = true
 # Then paste the id below:
 [[kv_namespaces]]
 binding = "RATE_LIMIT"
-id = "4c388febb522466b8ae5cfec8893b264"
+id = "0bd019ccf6704855a40bdd6fddeb2a33"
 
 [vars]
 # Non-secret repo metadata (same names as existing activators)
