@@ -1,5 +1,6 @@
 export type ProductId =
   | "hammer"
+  | "quickplay-win"
   | "valveoff-win"
   | "valveoff-linux"
   | "onetap"
@@ -30,6 +31,11 @@ export interface Env {
   GAMENATIVE_HWID_OWNER: string;
   GAMENATIVE_HWID_REPO: string;
 
+  QUICKPLAY_KEYS_OWNER: string;
+  QUICKPLAY_KEYS_REPO: string;
+  QUICKPLAY_HWID_OWNER: string;
+  QUICKPLAY_HWID_REPO: string;
+
   HAMMER_KEYS_PAT: string;
   HAMMER_HWID_PAT: string;
   VALVEOFF_KEYS_PAT: string;
@@ -38,6 +44,8 @@ export interface Env {
   ONETAP_HWID_PAT: string;
   GAMENATIVE_KEYS_PAT: string;
   GAMENATIVE_HWID_PAT: string;
+  QUICKPLAY_KEYS_PAT: string;
+  QUICKPLAY_HWID_PAT: string;
   KEYGEN_ADMIN_TOKEN?: string;
   DISCORD_WEBHOOK_URL?: string;
   TURNSTILE_SECRET_KEY?: string;
@@ -50,6 +58,7 @@ export interface ProductConfig {
   keysOwner: keyof Pick<
     Env,
     | "HAMMER_KEYS_OWNER"
+    | "QUICKPLAY_KEYS_OWNER"
     | "VALVEOFF_KEYS_OWNER"
     | "ONETAP_KEYS_OWNER"
     | "GAMENATIVE_KEYS_OWNER"
@@ -57,6 +66,7 @@ export interface ProductConfig {
   keysRepo: keyof Pick<
     Env,
     | "HAMMER_KEYS_REPO"
+    | "QUICKPLAY_KEYS_REPO"
     | "VALVEOFF_KEYS_REPO"
     | "ONETAP_KEYS_REPO"
     | "GAMENATIVE_KEYS_REPO"
@@ -64,6 +74,7 @@ export interface ProductConfig {
   keysPat: keyof Pick<
     Env,
     | "HAMMER_KEYS_PAT"
+    | "QUICKPLAY_KEYS_PAT"
     | "VALVEOFF_KEYS_PAT"
     | "ONETAP_KEYS_PAT"
     | "GAMENATIVE_KEYS_PAT"
@@ -71,6 +82,7 @@ export interface ProductConfig {
   hwidOwner: keyof Pick<
     Env,
     | "HAMMER_HWID_OWNER"
+    | "QUICKPLAY_HWID_OWNER"
     | "VALVEOFF_HWID_OWNER"
     | "ONETAP_HWID_OWNER"
     | "GAMENATIVE_HWID_OWNER"
@@ -78,6 +90,7 @@ export interface ProductConfig {
   hwidRepo: keyof Pick<
     Env,
     | "HAMMER_HWID_REPO"
+    | "QUICKPLAY_HWID_REPO"
     | "VALVEOFF_HWID_REPO"
     | "ONETAP_HWID_REPO"
     | "GAMENATIVE_HWID_REPO"
@@ -85,6 +98,7 @@ export interface ProductConfig {
   hwidPat: keyof Pick<
     Env,
     | "HAMMER_HWID_PAT"
+    | "QUICKPLAY_HWID_PAT"
     | "VALVEOFF_HWID_PAT"
     | "ONETAP_HWID_PAT"
     | "GAMENATIVE_HWID_PAT"
