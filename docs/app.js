@@ -251,6 +251,12 @@ async function apiCall(endpoint, body) {
   return { res, data };
 }
 
+function resolveApiProduct(productId) {
+  // QuickPlay Linux uses the same keys/HWID activation as Windows.
+  if (productId === "quickplay-linux") return "quickplay-win";
+  return productId;
+}
+
 btnCheck.addEventListener("click", async () => {
   if (!ensureApi() || !(await ensureBrowserProtection())) return;
 
@@ -266,7 +272,7 @@ btnCheck.addEventListener("click", async () => {
 
   try {
     const { res, data } = await apiCall("/api/v1/check-key", {
-      product: productEl.value,
+      product: resolveApiProduct(productEl.value),
       key,
     });
 
@@ -324,7 +330,7 @@ btnActivate.addEventListener("click", async () => {
 
   try {
     const { res, data } = await apiCall("/api/v1/activate", {
-      product: productEl.value,
+      product: resolveApiProduct(productEl.value),
       key,
       code42,
     });
