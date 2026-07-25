@@ -127,6 +127,51 @@ export async function createHwidFile(
   return res.ok;
 }
 
+/** Seller-approved activation for custom OS devices with shared HWIDs. */
+export async function createManualHwidFile(
+  owner: string,
+  repo: string,
+  pat: string,
+  fileName: string,
+  uuidStem: string,
+  key: string,
+  deviceFp: string
+): Promise<boolean> {
+  const phTime = formatPhilippineTime(new Date());
+  const fileContent =
+    `# Manual activation — Custom OS (shared hardware ID)\n` +
+    `Manual-Approved: quickplay-win\n` +
+    `Device-FP: ${deviceFp}\n` +
+    `Key: ${key}\n` +
+    `Created: ${phTime} (PH Time)\n\n` +
+    `${uuidStem}`;
+  const encoded = btoa(unescape(encodeURIComponent(fileContent)));
+
+  const url = contentsUrl(owner, repo, fileName);
+  const getRes = await fetch(url, { headers: githubHeaders(pat) });
+  let sha: string | undefined;
+  if (getRes.ok) {
+    const existing = (await getRes.json()) as GitHubContentFile;
+    sha = existing.sha;
+  }
+
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: {
+      ...githubHeaders(pat),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      message: sha
+        ? `Manual re-activate ${fileName} (custom OS) key: ${key}`
+        : `Manual activate ${fileName} (custom OS) key: ${key}`,
+      content: encoded,
+      ...(sha ? { sha } : {}),
+    }),
+  });
+  return res.ok;
+}
+
 export async function getKeyUsedDatePH(
   owner: string,
   repo: string,

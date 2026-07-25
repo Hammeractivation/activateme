@@ -1,8 +1,9 @@
-import { getProduct, resolveRepo } from "./products";
+import { getProduct, isQuickPlayProduct, resolveRepo } from "./products";
 import { corsHeaders, isBrowserOrigin } from "./cors";
 import {
   createKeyFile,
   createHwidFile,
+  createManualHwidFile,
   deleteKeyFile,
   formatPhilippineTimeNow,
   getKeyUsedDatePH,
@@ -10,6 +11,7 @@ import {
   listKeyFiles,
   notifyDiscord,
 } from "./github";
+import { isAbnormalHwidStem, normalizeDeviceFp } from "./abnormal_hwids";
 import { decodeCode42ToUuid, decodeDynamic, hwidToFileStem, uuidToFileStem } from "./hwid";
 import {
   checkAdminRateLimits,
@@ -251,6 +253,20 @@ async function handleActivate(
     );
   }
 
+  if (isQuickPlayProduct(productId) && isAbnormalHwidStem(fileStem)) {
+    return json(
+      request,
+      {
+        status: "custom_os",
+        message:
+          "Custom OS detected — this device uses a shared hardware ID. " +
+          "Auto-activation is not available. Contact your seller with your " +
+          "registration code and payment proof for manual activation.",
+      },
+      400
+    );
+  }
+
   const deleted = await deleteKeyFile(keys.owner, keys.repo, keys.pat, key);
   if (!deleted) {
     return json(
@@ -362,6 +378,121 @@ async function handleAdminDeleteKey(
   return json(request, { status: "success", message: "Key deleted successfully." });
 }
 
+async function handleAdminManualActivate(
+  request: Request,
+  env: Env,
+  productId: string,
+  key: string,
+  code42: string,
+  deviceFpRaw: string
+): Promise<Response> {
+  const product = getProduct(productId);
+  if (!product) return json(request, { status: "error", message: "Invalid product." }, 400);
+  if (!isQuickPlayProduct(productId)) {
+    return json(
+      request,
+      { status: "error", message: "Manual activation is only supported for QuickPlay." },
+      400
+    );
+  }
+  if (!key || !code42) {
+    return json(
+      request,
+      { status: "error", message: "Key and registration code are required." },
+      400
+    );
+  }
+
+  const deviceFp = normalizeDeviceFp(deviceFpRaw);
+  if (!deviceFp) {
+    return json(
+      request,
+      {
+        status: "error",
+        message: "Device fingerprint is required (64-character hex from QuickPlay).",
+      },
+      400
+    );
+  }
+
+  const keys = resolveRepo(env, product, "keys");
+  const hwidRepo = resolveRepo(env, product, "hwid");
+
+  const exists = await keyFileExists(keys.owner, keys.repo, keys.pat, key);
+  if (!exists) {
+    return json(request, { status: "not_found", message: "Key not found." }, 404);
+  }
+
+  let hwid: string;
+  let fileStem: string;
+  try {
+    ({ hwid, fileStem } = decodeRegistrationCode(product, code42));
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Invalid registration code.";
+    return json(request, { status: "error", message: `Invalid registration code. ${msg}` }, 400);
+  }
+
+  if (!isAbnormalHwidStem(fileStem)) {
+    return json(
+      request,
+      {
+        status: "error",
+        message:
+          "This device is not flagged as custom OS / shared HWID. Use normal Activate instead.",
+      },
+      400
+    );
+  }
+
+  const deleted = await deleteKeyFile(keys.owner, keys.repo, keys.pat, key);
+  if (!deleted) {
+    return json(request, { status: "error", message: "Key found but could not be consumed." }, 500);
+  }
+
+  const fileName = `${fileStem}${product.hwidExtension}`;
+  const created = await createManualHwidFile(
+    hwidRepo.owner,
+    hwidRepo.repo,
+    hwidRepo.pat,
+    fileName,
+    fileStem,
+    key,
+    deviceFp
+  );
+
+  if (!created) {
+    return json(
+      request,
+      {
+        status: "error",
+        message: "Failed to create manual activation file. Device may already be registered.",
+      },
+      409
+    );
+  }
+
+  if (env.DISCORD_WEBHOOK_URL) {
+    try {
+      await notifyDiscord(
+        env.DISCORD_WEBHOOK_URL,
+        hwid,
+        key,
+        formatPhilippineTimeNow(),
+        `Manual activate ${fileName} (custom OS)`
+      );
+    } catch {
+      // non-fatal
+    }
+  }
+
+  return json(request, {
+    status: "success",
+    message:
+      "Manual activation complete. User can download after 2–4 minutes. " +
+      "Only this seller-approved registration is valid for shared HWID devices.",
+  });
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     try {
@@ -432,7 +563,8 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     if (
       url.pathname === "/api/v1/admin/create-key" ||
       url.pathname === "/api/v1/admin/list-keys" ||
-      url.pathname === "/api/v1/admin/delete-key"
+      url.pathname === "/api/v1/admin/delete-key" ||
+      url.pathname === "/api/v1/admin/manual-activate"
     ) {
       if (await isAdminIpBanned(env.RATE_LIMIT, ip)) {
         return json(
@@ -474,12 +606,17 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
       const product = adminBody.product?.trim();
       const key = sanitizeKey(adminBody.key ?? "");
       const search = (adminBody.search ?? "").trim();
+      const code42 = (adminBody.code42 ?? "").trim();
+      const deviceFp = (adminBody.device_fp ?? "").trim();
 
       if (url.pathname === "/api/v1/admin/create-key") {
         return handleAdminCreateKey(request, env, product, key);
       }
       if (url.pathname === "/api/v1/admin/list-keys") {
         return handleAdminListKeys(request, env, product, search);
+      }
+      if (url.pathname === "/api/v1/admin/manual-activate") {
+        return handleAdminManualActivate(request, env, product, key, code42, deviceFp);
       }
       return handleAdminDeleteKey(request, env, product, key);
     }

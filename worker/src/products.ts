@@ -27,6 +27,20 @@ export const PRODUCTS: Record<ProductId, ProductConfig> = {
     hwidExtension: ".user",
     hwidLookupExtensions: [".user"],
   },
+  // Same keys + HWID repos as Windows — Linux app uses Windows activation backend.
+  "quickplay-linux": {
+    id: "quickplay-linux",
+    label: "QuickPlay for Linux",
+    codeMode: "code42",
+    keysOwner: "QUICKPLAY_KEYS_OWNER",
+    keysRepo: "QUICKPLAY_KEYS_REPO",
+    keysPat: "QUICKPLAY_KEYS_PAT",
+    hwidOwner: "QUICKPLAY_HWID_OWNER",
+    hwidRepo: "QUICKPLAY_HWID_REPO",
+    hwidPat: "QUICKPLAY_HWID_PAT",
+    hwidExtension: ".user",
+    hwidLookupExtensions: [".user"],
+  },
   "valveoff-win": {
     id: "valveoff-win",
     label: "Valve OFF (Windows)",
@@ -83,6 +97,10 @@ export const PRODUCTS: Record<ProductId, ProductConfig> = {
 
 export function getProduct(id: string): ProductConfig | null {
   return PRODUCTS[id as ProductId] ?? null;
+}
+
+export function isQuickPlayProduct(id: string): boolean {
+  return id === "quickplay-win" || id === "quickplay-linux";
 }
 
 export function resolveRepo(

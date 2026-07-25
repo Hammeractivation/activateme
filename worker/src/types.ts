@@ -1,6 +1,7 @@
 export type ProductId =
   | "hammer"
   | "quickplay-win"
+  | "quickplay-linux"
   | "valveoff-win"
   | "valveoff-linux"
   | "onetap"
