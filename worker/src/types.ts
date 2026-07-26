@@ -106,6 +106,8 @@ export interface ProductConfig {
   >;
   hwidExtension: string;
   hwidLookupExtensions: string[];
+  /** If set, keys must start with this prefix (case-insensitive). */
+  keyPrefix?: string;
 }
 
 export interface ApiResponse {

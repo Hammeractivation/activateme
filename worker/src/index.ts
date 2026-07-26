@@ -1,4 +1,4 @@
-import { getProduct, isQuickPlayProduct, resolveRepo } from "./products";
+import { getProduct, hasValidKeyPrefix, isQuickPlayProduct, resolveRepo } from "./products";
 import { corsHeaders, isBrowserOrigin } from "./cors";
 import {
   createKeyFile,
@@ -158,6 +158,14 @@ async function handleCheckKey(
     );
   }
 
+  if (!hasValidKeyPrefix(product, key)) {
+    await recordFailedAttempt(env.RATE_LIMIT, ip);
+    return json(request, {
+      status: "not_found",
+      message: "Key not found in database.",
+    });
+  }
+
   const keys = resolveRepo(env, product, "keys");
   const hwid = resolveRepo(env, product, "hwid");
   const exists = await keyFileExists(keys.owner, keys.repo, keys.pat, key);
@@ -222,6 +230,14 @@ async function handleActivate(
       },
       429
     );
+  }
+
+  if (!hasValidKeyPrefix(product, key)) {
+    await recordFailedAttempt(env.RATE_LIMIT, ip);
+    return json(request, {
+      status: "not_found",
+      message: "Key not found. Contact your seller.",
+    });
   }
 
   const keys = resolveRepo(env, product, "keys");
@@ -401,6 +417,10 @@ async function handleAdminManualActivate(
       { status: "error", message: "Key and registration code are required." },
       400
     );
+  }
+
+  if (!hasValidKeyPrefix(product, key)) {
+    return json(request, { status: "not_found", message: "Key not found." }, 404);
   }
 
   const deviceFp = normalizeDeviceFp(deviceFpRaw);

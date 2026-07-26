@@ -26,8 +26,9 @@ export const PRODUCTS: Record<ProductId, ProductConfig> = {
     hwidPat: "QUICKPLAY_HWID_PAT",
     hwidExtension: ".user",
     hwidLookupExtensions: [".user"],
+    keyPrefix: "QPW",
   },
-  // Same keys + HWID repos as Windows — Linux app uses Windows activation backend.
+  // Same keys + HWID repos as Windows — Linux keys use QPL prefix.
   "quickplay-linux": {
     id: "quickplay-linux",
     label: "QuickPlay for Linux",
@@ -40,6 +41,7 @@ export const PRODUCTS: Record<ProductId, ProductConfig> = {
     hwidPat: "QUICKPLAY_HWID_PAT",
     hwidExtension: ".user",
     hwidLookupExtensions: [".user"],
+    keyPrefix: "QPL",
   },
   "valveoff-win": {
     id: "valveoff-win",
@@ -101,6 +103,11 @@ export function getProduct(id: string): ProductConfig | null {
 
 export function isQuickPlayProduct(id: string): boolean {
   return id === "quickplay-win" || id === "quickplay-linux";
+}
+
+export function hasValidKeyPrefix(product: ProductConfig, key: string): boolean {
+  if (!product.keyPrefix) return true;
+  return key.toUpperCase().startsWith(product.keyPrefix.toUpperCase());
 }
 
 export function resolveRepo(
