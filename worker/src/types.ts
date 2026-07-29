@@ -5,7 +5,8 @@ export type ProductId =
   | "valveoff-win"
   | "valveoff-linux"
   | "onetap"
-  | "gamenative";
+  | "gamenative"
+  | "hammer-v";
 
 export type CodeMode = "code42" | "dynamic";
 
@@ -37,6 +38,11 @@ export interface Env {
   QUICKPLAY_HWID_OWNER: string;
   QUICKPLAY_HWID_REPO: string;
 
+  HAMMERV_KEYS_OWNER: string;
+  HAMMERV_KEYS_REPO: string;
+  HAMMERV_HWID_OWNER: string;
+  HAMMERV_HWID_REPO: string;
+
   HAMMER_KEYS_PAT: string;
   HAMMER_HWID_PAT: string;
   VALVEOFF_KEYS_PAT: string;
@@ -47,6 +53,8 @@ export interface Env {
   GAMENATIVE_HWID_PAT: string;
   QUICKPLAY_KEYS_PAT: string;
   QUICKPLAY_HWID_PAT: string;
+  HAMMERV_KEYS_PAT: string;
+  HAMMERV_HWID_PAT: string;
   KEYGEN_ADMIN_TOKEN?: string;
   DISCORD_WEBHOOK_URL?: string;
   TURNSTILE_SECRET_KEY?: string;
@@ -63,6 +71,7 @@ export interface ProductConfig {
     | "VALVEOFF_KEYS_OWNER"
     | "ONETAP_KEYS_OWNER"
     | "GAMENATIVE_KEYS_OWNER"
+    | "HAMMERV_KEYS_OWNER"
   >;
   keysRepo: keyof Pick<
     Env,
@@ -71,6 +80,7 @@ export interface ProductConfig {
     | "VALVEOFF_KEYS_REPO"
     | "ONETAP_KEYS_REPO"
     | "GAMENATIVE_KEYS_REPO"
+    | "HAMMERV_KEYS_REPO"
   >;
   keysPat: keyof Pick<
     Env,
@@ -79,6 +89,7 @@ export interface ProductConfig {
     | "VALVEOFF_KEYS_PAT"
     | "ONETAP_KEYS_PAT"
     | "GAMENATIVE_KEYS_PAT"
+    | "HAMMERV_KEYS_PAT"
   >;
   hwidOwner: keyof Pick<
     Env,
@@ -87,6 +98,7 @@ export interface ProductConfig {
     | "VALVEOFF_HWID_OWNER"
     | "ONETAP_HWID_OWNER"
     | "GAMENATIVE_HWID_OWNER"
+    | "HAMMERV_HWID_OWNER"
   >;
   hwidRepo: keyof Pick<
     Env,
@@ -95,6 +107,7 @@ export interface ProductConfig {
     | "VALVEOFF_HWID_REPO"
     | "ONETAP_HWID_REPO"
     | "GAMENATIVE_HWID_REPO"
+    | "HAMMERV_HWID_REPO"
   >;
   hwidPat: keyof Pick<
     Env,
@@ -103,6 +116,7 @@ export interface ProductConfig {
     | "VALVEOFF_HWID_PAT"
     | "ONETAP_HWID_PAT"
     | "GAMENATIVE_HWID_PAT"
+    | "HAMMERV_HWID_PAT"
   >;
   hwidExtension: string;
   hwidLookupExtensions: string[];

@@ -95,6 +95,20 @@ export const PRODUCTS: Record<ProductId, ProductConfig> = {
     hwidExtension: ".user",
     hwidLookupExtensions: [".user"],
   },
+  "hammer-v": {
+    id: "hammer-v",
+    label: "Hammer-V (Steam Deck)",
+    codeMode: "code42",
+    keysOwner: "HAMMERV_KEYS_OWNER",
+    keysRepo: "HAMMERV_KEYS_REPO",
+    keysPat: "HAMMERV_KEYS_PAT",
+    hwidOwner: "HAMMERV_HWID_OWNER",
+    hwidRepo: "HAMMERV_HWID_REPO",
+    hwidPat: "HAMMERV_HWID_PAT",
+    hwidExtension: ".hammrv",
+    hwidLookupExtensions: [".hammrv"],
+    keyPrefix: "HVV",
+  },
 };
 
 export function getProduct(id: string): ProductConfig | null {

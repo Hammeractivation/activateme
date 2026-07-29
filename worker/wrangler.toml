@@ -39,6 +39,11 @@ QUICKPLAY_KEYS_REPO = "quickplayky"
 QUICKPLAY_HWID_OWNER = "hammerwebsite12"
 QUICKPLAY_HWID_REPO = "quickplayusr"
 
+HAMMERV_KEYS_OWNER = "hammerwebsite12"
+HAMMERV_KEYS_REPO = "hammervky"
+HAMMERV_HWID_OWNER = "hammerwebsite12"
+HAMMERV_HWID_REPO = "quickplayusr"
+
 # Secrets ? set via: wrangler secret put SECRET_NAME
 # HAMMER_KEYS_PAT
 # HAMMER_HWID_PAT
@@ -50,5 +55,7 @@ QUICKPLAY_HWID_REPO = "quickplayusr"
 # GAMENATIVE_HWID_PAT
 # QUICKPLAY_KEYS_PAT
 # QUICKPLAY_HWID_PAT
+# HAMMERV_KEYS_PAT
+# HAMMERV_HWID_PAT
 # DISCORD_WEBHOOK_URL
 # TURNSTILE_SECRET_KEY (optional ? bot check for website browsers only)
