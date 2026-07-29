@@ -97,7 +97,7 @@ export const PRODUCTS: Record<ProductId, ProductConfig> = {
   },
   "hammer-v": {
     id: "hammer-v",
-    label: "Hammer-V (Steam Deck)",
+    label: "Hammer-V for SteamOS/Bazzite",
     codeMode: "code42",
     keysOwner: "HAMMERV_KEYS_OWNER",
     keysRepo: "HAMMERV_KEYS_REPO",
