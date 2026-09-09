@@ -111,7 +111,7 @@ export const PRODUCTS: Record<ProductId, ProductConfig> = {
   },
   "hammer-retro": {
     id: "hammer-retro",
-    label: "Hammer Retro",
+    label: "Hammer Retro (Windows)",
     codeMode: "code42",
     keysOwner: "QUICKPLAY_KEYS_OWNER",
     keysRepo: "QUICKPLAY_KEYS_REPO",
@@ -121,7 +121,7 @@ export const PRODUCTS: Record<ProductId, ProductConfig> = {
     hwidPat: "QUICKPLAY_HWID_PAT",
     hwidExtension: ".user5",
     hwidLookupExtensions: [".user5"],
-    keyPrefix: "QPW",
+    keyPrefix: ["QPW", "HRW"],
   },
 };
 
@@ -135,7 +135,9 @@ export function isQuickPlayProduct(id: string): boolean {
 
 export function hasValidKeyPrefix(product: ProductConfig, key: string): boolean {
   if (!product.keyPrefix) return true;
-  return key.toUpperCase().startsWith(product.keyPrefix.toUpperCase());
+  const prefixes = Array.isArray(product.keyPrefix) ? product.keyPrefix : [product.keyPrefix];
+  const upper = key.toUpperCase();
+  return prefixes.some((prefix) => upper.startsWith(prefix.toUpperCase()));
 }
 
 export function resolveRepo(
