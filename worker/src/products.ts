@@ -121,7 +121,7 @@ export const PRODUCTS: Record<ProductId, ProductConfig> = {
     hwidPat: "QUICKPLAY_HWID_PAT",
     hwidExtension: ".user5",
     hwidLookupExtensions: [".user5"],
-    keyPrefix: ["QPW", "HRW"],
+    keyPrefix: ["QPW", "HRW", "HMR"],
   },
 };
 
