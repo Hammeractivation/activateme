@@ -6,7 +6,8 @@ export type ProductId =
   | "valveoff-linux"
   | "onetap"
   | "gamenative"
-  | "hammer-v";
+  | "hammer-v"
+  | "hammer-retro";
 
 export type CodeMode = "code42" | "dynamic";
 

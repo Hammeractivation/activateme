@@ -109,6 +109,20 @@ export const PRODUCTS: Record<ProductId, ProductConfig> = {
     hwidLookupExtensions: [".hammrv"],
     keyPrefix: "HVV",
   },
+  "hammer-retro": {
+    id: "hammer-retro",
+    label: "Hammer Retro",
+    codeMode: "code42",
+    keysOwner: "QUICKPLAY_KEYS_OWNER",
+    keysRepo: "QUICKPLAY_KEYS_REPO",
+    keysPat: "QUICKPLAY_KEYS_PAT",
+    hwidOwner: "QUICKPLAY_HWID_OWNER",
+    hwidRepo: "QUICKPLAY_HWID_REPO",
+    hwidPat: "QUICKPLAY_HWID_PAT",
+    hwidExtension: ".user5",
+    hwidLookupExtensions: [".user5"],
+    keyPrefix: "QPW",
+  },
 };
 
 export function getProduct(id: string): ProductConfig | null {
@@ -116,7 +130,7 @@ export function getProduct(id: string): ProductConfig | null {
 }
 
 export function isQuickPlayProduct(id: string): boolean {
-  return id === "quickplay-win" || id === "quickplay-linux";
+  return id === "quickplay-win" || id === "quickplay-linux" || id === "hammer-retro";
 }
 
 export function hasValidKeyPrefix(product: ProductConfig, key: string): boolean {
